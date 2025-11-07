@@ -1,6 +1,6 @@
-// app.js - Complete Mobile-Optimized Voting System for UMA - UPDATED VERSION
-const SUPABASE_URL = 'https://jypuappvttmkvrxowvmh.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp5cHVhcHB2dHRta3ZyeG93dm1oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIxNjg3NTUsImV4cCI6MjA3Nzc0NDc1NX0.-zb9RObfSaCV8MOik1AFIW_ygq3Agh2QuWky9RXcXZA';
+// app.js - Complete Mobile-Optimized Voting System for UMA - UPDATED WITH PAGE NAVIGATION
+const SUPABASE_URL = 'https://your-project-url.supabase.co';
+const SUPABASE_ANON_KEY = 'your-anon-key-here';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -23,6 +23,48 @@ document.addEventListener('DOMContentLoaded', function() {
     setupMobileOptimizations();
 });
 
+// Page Navigation Functions
+function goToPage(pageNumber) {
+    // Hide all pages
+    document.querySelectorAll('.page').forEach(page => {
+        page.classList.remove('active');
+    });
+    
+    // Show target page
+    document.getElementById(`page${pageNumber}`).classList.add('active');
+    
+    // Update progress steps
+    updateProgressSteps(pageNumber);
+    
+    // Scroll to top
+    window.scrollTo(0, 0);
+}
+
+function updateProgressSteps(currentStep) {
+    const steps = document.querySelectorAll('.step');
+    const progressText = document.getElementById('progressText');
+    
+    const stepTexts = {
+        1: 'Step 1 of 4: Voter Login',
+        2: 'Step 2 of 4: Verify Identity',
+        3: 'Step 3 of 4: Cast Your Votes',
+        4: 'Step 4 of 4: Review & Submit'
+    };
+    
+    steps.forEach((step, index) => {
+        step.classList.remove('active', 'completed');
+        if (index + 1 < currentStep) {
+            step.classList.add('completed');
+        } else if (index + 1 === currentStep) {
+            step.classList.add('active');
+        }
+    });
+    
+    if (progressText && stepTexts[currentStep]) {
+        progressText.textContent = stepTexts[currentStep];
+    }
+}
+
 // Check if voting is open or closed
 async function checkVotingStatus() {
     try {
@@ -38,14 +80,12 @@ async function checkVotingStatus() {
             // If no timer set, hide voting closed section
             document.getElementById('votingClosedSection').style.display = 'none';
             document.getElementById('progressContainer').style.display = 'block';
-            document.getElementById('votingMain').style.display = 'block';
         }
     } catch (error) {
         console.error('Error checking voting status:', error);
         // Default to showing voting interface if error
         document.getElementById('votingClosedSection').style.display = 'none';
         document.getElementById('progressContainer').style.display = 'block';
-        document.getElementById('votingMain').style.display = 'block';
     }
 }
 
@@ -134,7 +174,6 @@ function initializeElectionTimer() {
     const countdownElement = document.getElementById('countdown');
     const votingClosedSection = document.getElementById('votingClosedSection');
     const progressContainer = document.getElementById('progressContainer');
-    const votingMain = document.getElementById('votingMain');
     
     function updateTimer() {
         const now = new Date().getTime();
@@ -146,7 +185,6 @@ function initializeElectionTimer() {
             countdownElement.textContent = 'VOTING CLOSED';
             votingClosedSection.style.display = 'block';
             progressContainer.style.display = 'none';
-            votingMain.style.display = 'none';
             return;
         }
         
@@ -163,7 +201,6 @@ function initializeElectionTimer() {
         timerElement.style.display = 'block';
         votingClosedSection.style.display = 'none';
         progressContainer.style.display = 'block';
-        votingMain.style.display = 'block';
     }
     
     updateTimer();
@@ -173,13 +210,8 @@ function initializeElectionTimer() {
 // Check if device has already been used for voting
 function checkDeviceVotingStatus() {
     if (window.votingApp.hasVotedOnThisDevice) {
-        const loginSection = document.getElementById('loginSection');
-        loginSection.innerHTML += `
-            <div class="message warning">
-                <i class="fas fa-exclamation-triangle"></i>
-                This device has already been used to vote.
-            </div>
-        `;
+        const loginMessage = document.getElementById('loginMessage');
+        showMessage(loginMessage, 'This device has already been used to vote.', 'warning');
     }
 }
 
@@ -290,11 +322,8 @@ async function confirmUpload() {
         showMessage(uploadMessage, 'ID uploaded successfully!', 'success');
         
         setTimeout(() => {
-            showSection('votingSection');
             loadCandidates();
-            updateProgress(3, 'Step 3 of 4: Cast Your Votes');
-            
-            window.scrollTo(0, 0);
+            goToPage(3); // Go to voting page
         }, 1500);
 
     } catch (error) {
@@ -378,11 +407,8 @@ async function handleVoterLogin() {
         window.votingApp.currentVoterHasVoted = voter.has_voted;
 
         setTimeout(() => {
-            showSection('voterDetailsSection');
             displayVoterDetails(voter);
-            updateProgress(2, 'Step 2 of 4: Verify Identity');
-            
-            window.scrollTo(0, 0);
+            goToPage(2); // Go to ID upload page
         }, 1000);
 
     } catch (error) {
@@ -396,7 +422,7 @@ function displayVoterDetails(voter) {
     document.getElementById('displayEmail').textContent = voter.email;
 }
 
-// Load candidates for all positions with mobile optimizations - OPTIMIZED VERSION
+// Load candidates for all positions with mobile optimizations
 async function loadCandidates() {
     const positionsContainer = document.getElementById('positionsContainer');
     positionsContainer.innerHTML = '<div class="loading-results"><i class="fas fa-spinner fa-spin"></i><p>Loading positions and candidates...</p></div>';
@@ -640,10 +666,7 @@ function reviewVotes() {
     }
     
     reviewContainer.innerHTML = reviewHTML;
-    showSection('reviewSection');
-    updateProgress(4, 'Step 4 of 4: Review and Submit');
-    
-    window.scrollTo(0, 0);
+    goToPage(4); // Go to review page
 }
 
 // Change vote for a specific position with mobile optimization
@@ -651,25 +674,10 @@ function changeVoteForPosition(positionId) {
     window.votingApp.selectedCandidates[positionId] = null;
     updatePositionStatus(positionId, null);
     updateCompletionStatus();
-    goBackToVoting();
-    
-    setTimeout(() => {
-        const positionDiv = document.getElementById(`position-${positionId}`);
-        if (positionDiv) {
-            positionDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-    }, 100);
+    goToPage(3); // Go back to voting page
 }
 
-// Navigate back to voting section
-function goBackToVoting() {
-    showSection('votingSection');
-    updateProgress(3, 'Step 3 of 4: Cast Your Votes');
-    
-    window.scrollTo(0, 0);
-}
-
-// Cast votes - Multi-position voting with mobile optimizations - OPTIMIZED VERSION
+// Cast votes - Multi-position voting with mobile optimizations
 async function castVotes() {
     const votingMessage = document.getElementById('votingMessage');
     const submitButton = document.getElementById('submitVoteButton');
@@ -728,8 +736,8 @@ async function castVotes() {
         showMessage(votingMessage, `Success! ${votesCast} vote(s) recorded.`, 'success');
         
         setTimeout(() => {
-            showSection('completionSection');
-            window.scrollTo(0, 0);
+            document.getElementById('finalVoteCount').textContent = votesCast;
+            goToPage(5); // Go to completion page
         }, 2000);
         
     } catch (error) {
@@ -770,27 +778,6 @@ function getIconForMessageType(type) {
     return icons[type] || 'info-circle';
 }
 
-function showSection(sectionId) {
-    document.querySelectorAll('main section').forEach(section => {
-        section.classList.remove('active');
-    });
-    document.getElementById(sectionId).classList.add('active');
-}
-
-function updateProgress(step, text) {
-    const steps = document.querySelectorAll('.step');
-    steps.forEach((stepEl, index) => {
-        stepEl.classList.remove('active', 'completed');
-        if (index + 1 < step) {
-            stepEl.classList.add('completed');
-        } else if (index + 1 === step) {
-            stepEl.classList.add('active');
-        }
-    });
-    
-    document.querySelector('.progress-text').textContent = text;
-}
-
 function showAlreadyVotedNotification() {
     const loginMessage = document.getElementById('loginMessage');
     showMessage(loginMessage, 'You have already voted.', 'error');
@@ -806,5 +793,5 @@ window.selectCandidate = selectCandidate;
 window.skipPosition = skipPosition;
 window.reviewVotes = reviewVotes;
 window.changeVoteForPosition = changeVoteForPosition;
-window.goBackToVoting = goBackToVoting;
 window.castVotes = castVotes;
+window.goToPage = goToPage;
