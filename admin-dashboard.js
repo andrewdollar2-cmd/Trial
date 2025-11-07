@@ -1,4 +1,4 @@
-// admin-dashboard.js - Complete Admin Dashboard Functionality - UPDATED FOR UMA
+// admin-dashboard.js - Complete Admin Dashboard Functionality - UPDATED WITH FIXES
 const SUPABASE_URL = 'https://jypuappvttmkvrxowvmh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp5cHVhcHB2dHRta3ZyeG93dm1oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIxNjg3NTUsImV4cCI6MjA3Nzc0NDc1NX0.-zb9RObfSaCV8MOik1AFIW_ygq3Agh2QuWky9RXcXZA';
 
@@ -10,7 +10,8 @@ window.adminApp = {
     adminRole: null,
     selectedVoterId: null,
     sessionStartTime: null,
-    realtimeSubscription: null
+    realtimeSubscription: null,
+    sessionTimeout: null
 };
 
 // Candidate Management State
@@ -31,8 +32,41 @@ async function initializeAdminDashboard() {
     await loadPositionsForDropdown();
     setupRealtimeUpdates();
     startSessionTimer();
+    setupSessionTimeout();
     
     setupRoleBasedAccess();
+    initializeNavigation();
+}
+
+// Initialize navigation
+function initializeNavigation() {
+    const navButtons = document.querySelectorAll('.nav-btn');
+    navButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            navButtons.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+}
+
+// Setup session timeout (30 minutes)
+function setupSessionTimeout() {
+    window.adminApp.sessionTimeout = setTimeout(() => {
+        alert('Session expired due to inactivity. Please log in again.');
+        logout();
+    }, 30 * 60 * 1000); // 30 minutes
+
+    // Reset timeout on user activity
+    document.addEventListener('click', resetSessionTimeout);
+    document.addEventListener('keypress', resetSessionTimeout);
+}
+
+function resetSessionTimeout() {
+    clearTimeout(window.adminApp.sessionTimeout);
+    window.adminApp.sessionTimeout = setTimeout(() => {
+        alert('Session expired due to inactivity. Please log in again.');
+        logout();
+    }, 30 * 60 * 1000);
 }
 
 // Setup role-based access control
@@ -41,8 +75,6 @@ function setupRoleBasedAccess() {
     
     if (adminRole !== 'superadmin') {
         document.getElementById('superAdminSection').style.display = 'none';
-        document.getElementById('superAdminCandidateSection').style.display = 'none';
-        document.getElementById('invalidVotesSection').style.display = 'none';
         document.getElementById('electionTimerControl').style.display = 'none';
     }
 }
@@ -51,15 +83,26 @@ function setupRoleBasedAccess() {
 function checkAdminAuthentication() {
     const adminRole = localStorage.getItem('adminRole');
     const adminUsername = localStorage.getItem('adminUsername');
+    const loginTime = localStorage.getItem('adminLoginTime');
     
-    if (!adminRole || !adminUsername) {
+    if (!adminRole || !adminUsername || !loginTime) {
+        window.location.href = 'admin-login.html';
+        return false;
+    }
+
+    // Check if session is expired (8 hours)
+    const sessionDuration = new Date() - new Date(loginTime);
+    if (sessionDuration > 8 * 60 * 60 * 1000) {
+        localStorage.removeItem('adminRole');
+        localStorage.removeItem('adminUsername');
+        localStorage.removeItem('adminLoginTime');
         window.location.href = 'admin-login.html';
         return false;
     }
 
     window.adminApp.currentAdmin = adminUsername;
     window.adminApp.adminRole = adminRole;
-    window.adminApp.sessionStartTime = new Date(localStorage.getItem('adminLoginTime'));
+    window.adminApp.sessionStartTime = new Date(loginTime);
 
     document.getElementById('currentAdmin').textContent = adminUsername;
     document.getElementById('adminRole').textContent = adminRole;
@@ -79,20 +122,20 @@ async function loadAdminData() {
     checkDatabaseStatus();
 }
 
-// Load admin statistics
+// Load admin statistics - FIXED VOTE COUNTING
 async function loadAdminStats() {
     try {
         const [
             { count: totalVoters },
             { count: votedCount },
-            { count: invalidCount }
+            { count: invalidVotedCount }
         ] = await Promise.all([
             supabase.from('voters').select('*', { count: 'exact', head: true }),
             supabase.from('voters').select('*', { count: 'exact', head: true }).eq('has_voted', true),
-            supabase.from('voters').select('*', { count: 'exact', head: true }).eq('is_invalid', true)
+            supabase.from('voters').select('*', { count: 'exact', head: true }).eq('has_voted', true).eq('is_invalid', true)
         ]);
 
-        const validVotedCount = (votedCount || 0) - (invalidCount || 0);
+        const validVotedCount = (votedCount || 0) - (invalidVotedCount || 0);
         const turnout = totalVoters > 0 ? Math.round((validVotedCount / totalVoters) * 100) : 0;
 
         document.getElementById('adminStats').innerHTML = `
@@ -113,7 +156,7 @@ async function loadAdminStats() {
             </div>
             <div class="stat-item">
                 <i class="fas fa-times-circle"></i>
-                <span class="stat-value">${invalidCount || 0}</span>
+                <span class="stat-value">${invalidVotedCount || 0}</span>
                 <span class="stat-label">Invalid Votes</span>
             </div>
         `;
@@ -773,7 +816,7 @@ async function updateElectionTimer() {
     }
 }
 
-// CANDIDATE MANAGEMENT FUNCTIONS (unchanged, but included for completeness)
+// CANDIDATE MANAGEMENT FUNCTIONS
 async function loadPositionsForDropdown() {
     try {
         const { data: positions, error } = await supabase
@@ -1453,6 +1496,9 @@ function showSection(sectionId) {
         section.classList.remove('active');
     });
     document.getElementById(sectionId).classList.add('active');
+    
+    // Reset session timeout on navigation
+    resetSessionTimeout();
 }
 
 function showAdminMessage(element, message, type) {
@@ -1484,6 +1530,10 @@ function checkDatabaseStatus() {
 }
 
 function setupRealtimeUpdates() {
+    if (window.adminApp.realtimeSubscription) {
+        window.adminApp.realtimeSubscription.unsubscribe();
+    }
+
     window.adminApp.realtimeSubscription = supabase
         .channel('votes-channel')
         .on('postgres_changes', 
@@ -1502,7 +1552,11 @@ function setupRealtimeUpdates() {
                 loadInvalidVoters();
             }
         )
-        .subscribe();
+        .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+                console.log('Admin dashboard listening for real-time updates');
+            }
+        });
 }
 
 function startSessionTimer() {
@@ -1551,6 +1605,10 @@ function downloadCSV(content, filename) {
 function logout() {
     if (window.adminApp.realtimeSubscription) {
         window.adminApp.realtimeSubscription.unsubscribe();
+    }
+    
+    if (window.adminApp.sessionTimeout) {
+        clearTimeout(window.adminApp.sessionTimeout);
     }
     
     localStorage.removeItem('adminRole');
