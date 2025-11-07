@@ -1,4 +1,4 @@
-// app.js - Complete Mobile-Optimized Voting System for UMA - UPDATED WITH PAGE NAVIGATION
+// app.js - Complete Mobile-Optimized Voting System for UMA - MULTI-PAGE VERSION
 const SUPABASE_URL = 'https://jypuappvttmkvrxowvmh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp5cHVhcHB2dHRta3ZyeG93dm1oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIxNjg3NTUsImV4cCI6MjA3Nzc0NDc1NX0.-zb9RObfSaCV8MOik1AFIW_ygq3Agh2QuWky9RXcXZA';
 
@@ -13,7 +13,8 @@ window.votingApp = {
     positions: [],
     electionEndTime: null,
     isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
-    selectedIdFile: null
+    selectedIdFile: null,
+    currentPage: 1
 };
 
 // Initialize application
@@ -21,10 +22,26 @@ document.addEventListener('DOMContentLoaded', function() {
     checkVotingStatus();
     checkDeviceVotingStatus();
     setupMobileOptimizations();
+    initializePageNavigation();
 });
 
 // Page Navigation Functions
+function initializePageNavigation() {
+    // Show only the first page initially
+    document.querySelectorAll('.page').forEach((page, index) => {
+        page.classList.remove('active');
+        if (index === 0) {
+            page.classList.add('active');
+        }
+    });
+    updateProgressSteps(1);
+}
+
 function goToPage(pageNumber) {
+    if (!validatePageNavigation(pageNumber)) {
+        return;
+    }
+
     // Hide all pages
     document.querySelectorAll('.page').forEach(page => {
         page.classList.remove('active');
@@ -32,12 +49,58 @@ function goToPage(pageNumber) {
     
     // Show target page
     document.getElementById(`page${pageNumber}`).classList.add('active');
+    window.votingApp.currentPage = pageNumber;
     
     // Update progress steps
     updateProgressSteps(pageNumber);
     
     // Scroll to top
     window.scrollTo(0, 0);
+
+    // Load data for specific pages
+    if (pageNumber === 3) {
+        loadCandidates();
+    } else if (pageNumber === 4) {
+        reviewVotes();
+    }
+}
+
+function validatePageNavigation(targetPage) {
+    const currentPage = window.votingApp.currentPage;
+    
+    // Allow going back to previous pages
+    if (targetPage < currentPage) {
+        return true;
+    }
+    
+    // Validate forward navigation
+    switch (targetPage) {
+        case 2: // ID Upload page
+            if (!window.votingApp.currentVoterId) {
+                showMessage(document.getElementById('loginMessage'), 'Please complete login first', 'error');
+                return false;
+            }
+            break;
+            
+        case 3: // Voting page
+            if (!window.votingApp.currentVoterId) {
+                showMessage(document.getElementById('uploadMessage'), 'Please complete ID upload first', 'error');
+                return false;
+            }
+            break;
+            
+        case 4: // Review page
+            const votedPositions = Object.values(window.votingApp.selectedCandidates).filter(
+                candidateId => candidateId && candidateId !== 'skipped'
+            ).length;
+            if (votedPositions === 0) {
+                showMessage(document.getElementById('completionAlert'), 'Please vote for at least one position', 'error');
+                return false;
+            }
+            break;
+    }
+    
+    return true;
 }
 
 function updateProgressSteps(currentStep) {
@@ -212,6 +275,8 @@ function checkDeviceVotingStatus() {
     if (window.votingApp.hasVotedOnThisDevice) {
         const loginMessage = document.getElementById('loginMessage');
         showMessage(loginMessage, 'This device has already been used to vote.', 'warning');
+        document.getElementById('voterEmail').disabled = true;
+        document.querySelector('button[onclick="handleVoterLogin()"]').disabled = true;
     }
 }
 
@@ -322,7 +387,6 @@ async function confirmUpload() {
         showMessage(uploadMessage, 'ID uploaded successfully!', 'success');
         
         setTimeout(() => {
-            loadCandidates();
             goToPage(3); // Go to voting page
         }, 1500);
 
@@ -666,7 +730,6 @@ function reviewVotes() {
     }
     
     reviewContainer.innerHTML = reviewHTML;
-    goToPage(4); // Go to review page
 }
 
 // Change vote for a specific position with mobile optimization
@@ -716,6 +779,7 @@ async function castVotes() {
             throw new Error('No votes to submit. Please select at least one candidate.');
         }
         
+        // Use transaction to ensure both operations succeed or fail together
         const { error: votesError } = await supabase
             .from('votes')
             .insert(votesToInsert);
