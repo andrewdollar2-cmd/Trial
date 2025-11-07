@@ -47,40 +47,52 @@
             </div>
         </div>
         
+        <!-- Progress Container (Only show when voting is active) -->
         <div class="progress-container" id="progressContainer">
             <div class="progress-steps">
-                <div class="step completed">1</div>
-                <div class="step completed">2</div>
-                <div class="step active">3</div>
-                <div class="step">4</div>
+                <div class="step active" id="step1">1</div>
+                <div class="step" id="step2">2</div>
+                <div class="step" id="step3">3</div>
+                <div class="step" id="step4">4</div>
             </div>
-            <div class="progress-text">Step 2 of 4: Verify Identity</div>
+            <div class="progress-text" id="progressText">Step 1 of 4: Voter Login</div>
         </div>
         
-        <main id="votingMain">
-            <!-- Section 1: Voter Login -->
-            <section id="loginSection" class="active">
+        <!-- Page 1: Voter Login -->
+        <div id="page1" class="page active">
+            <div class="page-content">
                 <h2>Voter Login</h2>
-                <p>Enter your registered email address</p>
-                <input type="email" id="voterEmail" placeholder="Your Email Address" autocapitalize="off">
-                <button onclick="handleVoterLogin()">Login</button>
-                <p id="loginMessage" class="message info">Please enter your email to begin voting</p>
-                <a href="admin-login.html" class="admin-link">
-                    <i class="fas fa-lock"></i> Administrator Login
-                </a>
-            </section>
-
-            <!-- Section 2: Voter Details & ID Upload -->
-            <section id="voterDetailsSection">
-                <h2>Welcome!</h2>
-                <div class="voter-details">
-                    <p><strong>Email:</strong> <span id="displayEmail">Loading...</span></p>
-                </div>
-
-                <h3>Step 2: Verify Your Identity</h3>
-                <p>Upload a clear picture of your UMA ID (Max: 10MB)</p>
+                <p>Enter your registered email address to begin voting</p>
                 
-                <!-- Enhanced ID Upload Options -->
+                <div class="input-group">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="voterEmail" placeholder="Your Email Address" autocapitalize="off">
+                </div>
+                
+                <button onclick="handleVoterLogin()" class="primary-btn">
+                    <i class="fas fa-sign-in-alt"></i> Login & Continue
+                </button>
+                
+                <p id="loginMessage" class="message info">Please enter your email to begin voting</p>
+                
+                <div class="page-links">
+                    <a href="admin-login.html" class="admin-link">
+                        <i class="fas fa-lock"></i> Administrator Login
+                    </a>
+                    <a href="results.html" class="results-link">
+                        <i class="fas fa-chart-bar"></i> View Live Results
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page 2: ID Upload -->
+        <div id="page2" class="page">
+            <div class="page-content">
+                <h2>Verify Your Identity</h2>
+                <p>Welcome, <span id="displayEmail" class="user-email">Loading...</span></p>
+                <p>Please upload a clear picture of your UMA ID for verification</p>
+                
                 <div class="upload-options">
                     <div class="upload-option" onclick="openCamera()">
                         <i class="fas fa-camera"></i>
@@ -99,28 +111,36 @@
                     <i class="fas fa-info-circle"></i> Maximum file size: 10MB • Supported formats: JPEG, PNG, WebP
                 </div>
 
-                <!-- Hidden file input for both options -->
-                <input type="file" id="idUpload" accept="image/*" capture="environment" style="display: none;">
+                <!-- Hidden file input -->
+                <input type="file" id="idUpload" accept="image/*" style="display: none;">
                 
                 <!-- Preview Section -->
                 <div id="idPreview" class="id-preview" style="display: none;">
                     <h4>ID Preview</h4>
                     <img id="previewImage" src="" alt="ID preview">
                     <div class="preview-actions">
-                        <button onclick="confirmUpload()" class="secondary-btn">
-                            <i class="fas fa-check"></i> Confirm Upload
+                        <button onclick="confirmUpload()" class="primary-btn">
+                            <i class="fas fa-check"></i> Confirm & Continue
                         </button>
-                        <button onclick="cancelUpload()" class="danger-btn">
+                        <button onclick="cancelUpload()" class="secondary-btn">
                             <i class="fas fa-times"></i> Cancel
                         </button>
                     </div>
                 </div>
 
                 <p id="uploadMessage" class="message info">Please upload your UMA ID for verification</p>
-            </section>
+                
+                <div class="navigation">
+                    <button onclick="goToPage(1)" class="secondary-btn">
+                        <i class="fas fa-arrow-left"></i> Back to Login
+                    </button>
+                </div>
+            </div>
+        </div>
 
-            <!-- Section 3: Voting Interface -->
-            <section id="votingSection">
+        <!-- Page 3: Voting Interface -->
+        <div id="page3" class="page">
+            <div class="page-content">
                 <h2>Cast Your Vote</h2>
                 <p>Select your preferred candidate for each position. You may skip any position.</p>
                 
@@ -134,47 +154,57 @@
                 </div>
                 
                 <div class="navigation">
-                    <button onclick="reviewVotes()" id="reviewButton" disabled>
-                        <i class="fas fa-clipboard-check"></i> Review Votes
+                    <button onclick="goToPage(2)" class="secondary-btn">
+                        <i class="fas fa-arrow-left"></i> Back to ID Upload
+                    </button>
+                    <button onclick="reviewVotes()" id="reviewButton" class="primary-btn" disabled>
+                        <i class="fas fa-clipboard-check"></i> Review Votes & Continue
                     </button>
                 </div>
-            </section>
+            </div>
+        </div>
 
-            <!-- Section 4: Review Votes -->
-            <section id="reviewSection">
+        <!-- Page 4: Review Votes -->
+        <div id="page4" class="page">
+            <div class="page-content">
                 <h2>Review Your Votes</h2>
-                <p>Please review your selections before submitting.</p>
+                <p>Please review your selections before submitting</p>
                 
-                <div class="review-vote" id="reviewContainer">
+                <div class="review-container" id="reviewContainer">
                     <!-- Review items loaded dynamically -->
                 </div>
                 
                 <p id="votingMessage" class="message info">Please confirm your votes before submitting</p>
                 
                 <div class="navigation">
-                    <button onclick="goBackToVoting()" class="secondary-btn">
-                        <i class="fas fa-arrow-left"></i> Modify Votes
+                    <button onclick="goToPage(3)" class="secondary-btn">
+                        <i class="fas fa-arrow-left"></i> Back to Voting
                     </button>
-                    <button onclick="castVotes()" id="submitVoteButton">
+                    <button onclick="castVotes()" id="submitVoteButton" class="primary-btn">
                         <i class="fas fa-paper-plane"></i> Submit Votes
                     </button>
                 </div>
-            </section>
+            </div>
+        </div>
 
-            <!-- Section 5: Voting Complete -->
-            <section id="completionSection">
-                <div class="completion-screen">
-                    <i class="fas fa-check-circle"></i>
-                    <h2>Voting Complete</h2>
-                    <p>Thank you for participating in the UMA election. Your votes have been recorded.</p>
-                    <div class="navigation">
-                        <button onclick="window.location.reload()">
-                            <i class="fas fa-home"></i> Return to Home
-                        </button>
-                    </div>
+        <!-- Page 5: Completion -->
+        <div id="page5" class="page">
+            <div class="page-content completion-screen">
+                <i class="fas fa-check-circle"></i>
+                <h2>Voting Complete</h2>
+                <p>Thank you for participating in the UMA election. Your votes have been recorded.</p>
+                <p class="completion-details">You successfully cast your vote for <span id="finalVoteCount">0</span> positions.</p>
+                
+                <div class="completion-actions">
+                    <button onclick="window.location.reload()" class="primary-btn">
+                        <i class="fas fa-home"></i> Return to Home
+                    </button>
+                    <button onclick="window.location.href='results.html'" class="secondary-btn">
+                        <i class="fas fa-chart-bar"></i> View Results
+                    </button>
                 </div>
-            </section>
-        </main>
+            </div>
+        </div>
         
         <footer>
             <p>UMA Secure Voting System &copy; 2025</p>
